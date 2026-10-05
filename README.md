@@ -18,9 +18,10 @@ flowchart LR
 
 ## Flashcard Anatomy
 
-<p align="center">
-  <img src="assets/screenshots/shunkan_ss.jpeg" width="560" alt="Shunkan Lock Screen Flashcard" />
-</p>
+| Lock Screen Trigger | In-App Experience |
+| :---: | :---: |
+| <img src="assets/screenshots/shunkan_ss_full.jpeg" width="250" alt="Lock Screen Flashcard" /> | <video src="assets/screenshots/shunkan_sr.mp4" width="250" controls></video> |
+| *Passive glance on wake* | *In-app pool, details & copy* |
 
 * **Lock-Screen Glance (Collapsed)**:
   * **Kanji & Primary Meaning**: Large high-contrast character and core translation.
