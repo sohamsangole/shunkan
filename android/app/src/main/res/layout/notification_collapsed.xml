@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/noti_collapsed_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingTop="0dp"
+    android:paddingBottom="0dp"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp">
+
+    <!-- Super Big 75sp Kanji Character on the left -->
+    <TextView
+        android:id="@+id/noti_kanji_char"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="日"
+        android:textColor="#FFFFFF"
+        android:textSize="75sp"
+        android:textStyle="bold"
+        android:includeFontPadding="false"
+        android:gravity="center"
+        android:minWidth="80dp" />
+
+    <!-- Details on the right: Meaning, On, Kun -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginStart="14dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/noti_meaning"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DAY"
+            android:textColor="#FFFFFF"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/noti_on_reading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ON: にち・じつ"
+            android:textColor="#E4E4E7"
+            android:textSize="12sp"
+            android:layout_marginTop="2dp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/noti_kun_reading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="KUN: ひ"
+            android:textColor="#A1A1AA"
+            android:textSize="12sp"
+            android:layout_marginTop="1dp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+</LinearLayout>
