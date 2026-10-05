@@ -20,7 +20,7 @@ flowchart LR
 
 | Lock Screen Trigger | In-App Experience |
 | :---: | :---: |
-| <img src="assets/screenshots/shunkan_ss_full.jpeg" width="250" alt="Lock Screen Flashcard" /> | <video src="assets/screenshots/shunkan_sr.mp4" width="250" controls></video> |
+| <img src="assets/screenshots/shunkan_ss_full.jpeg" width="250" alt="Lock Screen Flashcard" /> | <img src="assets/screenshots/shunkan_sr.gif" width="250" alt="In-App Experience Walkthrough" /> |
 | *Passive glance on wake* | *In-app pool, details & copy* |
 
 * **Lock-Screen Glance (Collapsed)**:
