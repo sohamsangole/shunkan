@@ -28,7 +28,7 @@ $$\text{Window Duration (Days)} = \left\lceil \frac{\text{Pool Size}}{2 \times \
 
 | JLPT Level | Pool Size ($N$) | Window Duration ($W$) | $30\%$ Engagement Threshold |
 | :--- | :---: | :---: | :---: |
-| **N5** | $\le 150$ (80 active) | **1 Day** (24 hours) | 24 glances |
+| **N5** | $\le 150$ (120 active) | **1 Day** (24 hours) | 36 glances |
 | **N4** | $\le 450$ (320 active) | **2 Days** (48 hours) | 96 glances |
 | **N3** | $\le 850$ (~650 active) | **4 Days** (96 hours) | 195 glances |
 | **N2** | $\le 1,500$ (~1,100 active) | **7 Days** (1 week) | 330 glances |
@@ -61,7 +61,7 @@ N & \text{if } C \le 30\% \quad \text{(Low engagement: flat } 1\times\text{, zer
 
 | JLPT Level | Pool ($N$) | Window ($W$) | Inactive ($\le 30\%$ coverage) | Peak Possible (at $30\%$) | **Typical User** ($65$ glances/day) | Active User ($80$ glances/day) |
 | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **N5** | **80** | **1 Day** (24h) | **80 cards** | **136 cards** | **95 cards** <br>*(Seen: 65, Missed: 15)* | **80 cards** <br>*(100% full coverage)* |
+| **N5** | **120** | **1 Day** (24h) | **120 cards** | **204 cards** | **175 cards** <br>*(Seen: 65, Missed: 55)* | **160 cards** <br>*(Seen: 80, Missed: 40)* |
 | **N4** | **320** | **2 Days** (48h) | **320 cards** | **544 cards** | **510 cards** <br>*(Seen: 130, Missed: 190)* | **480 cards** <br>*(Seen: 160, Missed: 160)* |
 | **N3** | **650** | **4 Days** (96h) | **650 cards** | **1,105 cards** | **1,040 cards** <br>*(Seen: 260, Missed: 390)* | **980 cards** <br>*(Seen: 320, Missed: 330)* |
 | **N2** | **1,100** | **7 Days** (1 Week) | **1,100 cards** | **1,870 cards** | **1,745 cards** <br>*(Seen: 455, Missed: 645)* | **1,640 cards** <br>*(Seen: 560, Missed: 540)* |
@@ -83,6 +83,25 @@ N & \text{if } C \le 30\% \quad \text{(Low engagement: flat } 1\times\text{, zer
   * **Additional Readings**: Full reading breakdowns and extended definitions.
   * **Compound Vocabulary**: Real-world word combinations with Furigana.
   * **Direct In-App Deep Link**: Tap to jump directly to the Kanji in the Pool and copy it with one click.
+
+---
+
+## In-App Experience & Habit Telemetry
+
+While the lock screen notification service acts as the primary passive exposure vehicle, the companion app provides real-time telemetry, structured review, and pool customization:
+
+* **Home Dashboard**:
+  * **Current Cycle**: Multi-day window progress tracking (`CYCLE DAY`, `SEEN`, `UNSEEN`).
+  * **Today Glance Metrics**: Real-time habit telemetry (`GLANCES`, `KANJI SEEN`, `IMMERSION` study time).
+  * **Last 7 Days**: Rolling micro-cards with animated fluid wave level fill.
+  * **Yearly Heatmap**: 52-week GitHub-style contribution matrix tracking unique characters learned across the year with 5-tier immersion grading (Hollow, `#27272A`, `#52525B`, `#A1A1AA`, `#FFFFFF`).
+* **Today Review**:
+  * Live daily exposure log displaying all kanji encountered today with glance count badges.
+  * Filter pills (`ALL` vs strict `2 GLANCES` for reviewing characters seen twice).
+* **Pool Explorer**:
+  * Active kanji pool browser filtered by JLPT level with one-tap clipboard copy and detailed reading views.
+* **Settings**:
+  * Target JLPT level switching, foreground service lifecycle controls, and manual lock screen refresh.
 
 ---
 
