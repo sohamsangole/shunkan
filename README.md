@@ -86,22 +86,14 @@ N & \text{if } C \le 30\% \quad \text{(Low engagement: flat } 1\times\text{, zer
 
 ---
 
-## In-App Experience & Habit Telemetry
+## Companion App & Telemetry
 
-While the lock screen notification service acts as the primary passive exposure vehicle, the companion app provides real-time telemetry, structured review, and pool customization:
+While the lock screen service handles passive micro-exposure, opening the app provides lightweight habit tracking and review:
 
-* **Home Dashboard**:
-  * **Current Cycle**: Multi-day window progress tracking (`CYCLE DAY`, `SEEN`, `UNSEEN`).
-  * **Today Glance Metrics**: Real-time habit telemetry (`GLANCES`, `KANJI SEEN`, `IMMERSION` study time).
-  * **Last 7 Days**: Rolling micro-cards with animated fluid wave level fill.
-  * **Yearly Heatmap**: 52-week GitHub-style contribution matrix tracking unique characters learned across the year with 5-tier immersion grading (Hollow, `#27272A`, `#52525B`, `#A1A1AA`, `#FFFFFF`).
-* **Today Review**:
-  * Live daily exposure log displaying all kanji encountered today with glance count badges.
-  * Filter pills (`ALL` vs strict `2 GLANCES` for reviewing characters seen twice).
-* **Pool Explorer**:
-  * Active kanji pool browser filtered by JLPT level with one-tap clipboard copy and detailed reading views.
-* **Settings**:
-  * Target JLPT level switching, foreground service lifecycle controls, and manual lock screen refresh.
+* **Progress & Consistency**: Multi-day cycle status, daily glance telemetry, rolling 7-day activity cards, and a 52-week annual immersion matrix.
+* **Daily Review (`Today`)**: Review characters encountered today with glance counts and quick filters.
+* **Character Pool**: Browse active JLPT levels with stroke readings, vocabulary compounds, and instant clipboard copy.
+* **Controls**: Service lifecycle management, manual card refresh, and target JLPT selection.
 
 ---
 
