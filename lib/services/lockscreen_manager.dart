@@ -109,23 +109,52 @@ class LockscreenManager {
 class TelemetryData {
   final int glancesToday;
   final int uniqueKanjiToday;
+  final List<String> kanjiIdsToday;
+  final Map<String, int> kanjiGlanceCountsToday;
   final int streakDays;
+  final int cyclesCompleted;
+  final int windowStartMs;
+  final int windowSeenCount;
   final String lastKanji;
   final String lastMeaning;
 
   const TelemetryData({
     this.glancesToday = 0,
     this.uniqueKanjiToday = 0,
+    this.kanjiIdsToday = const [],
+    this.kanjiGlanceCountsToday = const {},
     this.streakDays = 1,
+    this.cyclesCompleted = 0,
+    this.windowStartMs = 0,
+    this.windowSeenCount = 0,
     this.lastKanji = '',
     this.lastMeaning = '',
   });
 
+  /// Estimated passive viewing time in seconds (averaging ~4 seconds per glance)
+  int get estimatedSecondsToday => glancesToday * 4;
+
   factory TelemetryData.fromMap(Map<dynamic, dynamic> map) {
+    final rawIds = map['kanjiIdsToday'] as List<dynamic>?;
+    final ids = rawIds?.map((e) => e.toString()).toList() ?? const [];
+
+    final rawCounts = map['kanjiGlanceCountsToday'] as Map<dynamic, dynamic>?;
+    final counts = <String, int>{};
+    if (rawCounts != null) {
+      rawCounts.forEach((k, v) {
+        counts[k.toString()] = (v as num?)?.toInt() ?? 1;
+      });
+    }
+
     return TelemetryData(
       glancesToday: (map['glancesToday'] as num?)?.toInt() ?? 0,
       uniqueKanjiToday: (map['uniqueKanjiToday'] as num?)?.toInt() ?? 0,
+      kanjiIdsToday: ids,
+      kanjiGlanceCountsToday: counts,
       streakDays: (map['streakDays'] as num?)?.toInt() ?? 1,
+      cyclesCompleted: (map['cyclesCompleted'] as num?)?.toInt() ?? 0,
+      windowStartMs: (map['windowStartMs'] as num?)?.toInt() ?? 0,
+      windowSeenCount: (map['windowSeenCount'] as num?)?.toInt() ?? 0,
       lastKanji: map['lastKanji'] as String? ?? '',
       lastMeaning: map['lastMeaning'] as String? ?? '',
     );
