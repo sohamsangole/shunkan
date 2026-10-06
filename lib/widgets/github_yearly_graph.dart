@@ -147,10 +147,11 @@ class _GitHubYearlyKanjiGraphState extends State<GitHubYearlyKanjiGraph> {
         const SizedBox(height: 12),
 
         // Scrollable Grid of 52 weeks
-        SingleChildScrollView(
-          controller: _scrollController,
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
+        RepaintBoundary(
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -221,6 +222,7 @@ class _GitHubYearlyKanjiGraphState extends State<GitHubYearlyKanjiGraph> {
             ],
           ),
         ),
+      ),
 
         const SizedBox(height: 10),
 

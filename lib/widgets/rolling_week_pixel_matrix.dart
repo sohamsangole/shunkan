@@ -58,7 +58,7 @@ class RollingWeekPixelMatrix extends StatefulWidget {
 }
 
 class _RollingWeekPixelMatrixState extends State<RollingWeekPixelMatrix>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   int _selectedDayIndex = 6; // Default to today (index 6 in 0..6)
   late AnimationController _waveController;
   late AnimationController _tapScaleController;
@@ -76,6 +76,7 @@ class _RollingWeekPixelMatrixState extends State<RollingWeekPixelMatrix>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Continuous subtle smooth wave animation
     _waveController = AnimationController(
       vsync: this,
@@ -93,9 +94,23 @@ class _RollingWeekPixelMatrixState extends State<RollingWeekPixelMatrix>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _waveController.dispose();
     _tapScaleController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (mounted && !_waveController.isAnimating) {
+        _waveController.repeat();
+      }
+    } else {
+      if (_waveController.isAnimating) {
+        _waveController.stop();
+      }
+    }
   }
 
   void _onDayTap(int index) {
@@ -148,56 +163,59 @@ class _RollingWeekPixelMatrixState extends State<RollingWeekPixelMatrix>
       );
     }
 
-    return AnimatedBuilder(
-      animation: _waveController,
-      builder: (context, _) {
-        final wavePhase = _waveController.value * 2 * math.pi;
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _waveController,
+        builder: (context, _) {
+          final wavePhase = _waveController.value * 2 * math.pi;
 
-        return Row(
-          children: List.generate(days.length, (idx) {
-            final d = days[idx];
-            final isSelected = (_selectedDayIndex == idx);
+          return Row(
+            children: List.generate(days.length, (idx) {
+              final d = days[idx];
+              final isSelected = (_selectedDayIndex == idx);
 
-            return Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: idx == 0 ? 0 : 2.5,
-                  right: idx == days.length - 1 ? 0 : 2.5,
-                ),
-                child: GestureDetector(
-                  onTap: () => _onDayTap(idx),
-                  child: ScaleTransition(
-                    scale: (isSelected && _tapScaleController.isAnimating)
-                        ? _tapScaleController
-                        : const AlwaysStoppedAnimation(1.0),
-                    child: SizedBox(
-                      height: 66,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF121214),
-                          borderRadius: BorderRadius.circular(8.0),
-                          border: Border.all(
-                            color: d.isToday
-                                ? Colors.white
-                                : (isSelected
-                                    ? const Color(0xFF52525B)
-                                    : const Color(0xFF27272A)),
-                            width: d.isToday ? 1.2 : 0.8,
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: idx == 0 ? 0 : 2.5,
+                    right: idx == days.length - 1 ? 0 : 2.5,
+                  ),
+                  child: GestureDetector(
+                    onTap: () => _onDayTap(idx),
+                    child: ScaleTransition(
+                      scale: (isSelected && _tapScaleController.isAnimating)
+                          ? _tapScaleController
+                          : const AlwaysStoppedAnimation(1.0),
+                      child: SizedBox(
+                        height: 66,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF121214),
+                            borderRadius: BorderRadius.circular(8.0),
+                            border: Border.all(
+                              color: d.isToday
+                                  ? Colors.white
+                                  : (isSelected
+                                      ? const Color(0xFF52525B)
+                                      : const Color(0xFF27272A)),
+                              width: d.isToday ? 1.2 : 0.8,
+                            ),
                           ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(7.0),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              // Smooth Liquid Fill
-                              if (d.coverageRatio > 0 || (d.isToday && d.uniqueKanji > 0))
-                                CustomPaint(
-                                  painter: _SmoothLiquidPainter(
-                                    coverageRatio: d.coverageRatio,
-                                    wavePhase: wavePhase + (idx * 0.7),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(7.0),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                // Smooth Liquid Fill
+                                if (d.coverageRatio > 0 || (d.isToday && d.uniqueKanji > 0))
+                                  RepaintBoundary(
+                                    child: CustomPaint(
+                                      painter: _SmoothLiquidPainter(
+                                        coverageRatio: d.coverageRatio,
+                                        wavePhase: wavePhase + (idx * 0.7),
+                                      ),
+                                    ),
                                   ),
-                                ),
 
                               // Today indicator dot at top
                               if (d.isToday)
@@ -245,7 +263,8 @@ class _RollingWeekPixelMatrixState extends State<RollingWeekPixelMatrix>
           }),
         );
       },
-    );
+    ),
+  );
   }
 }
 

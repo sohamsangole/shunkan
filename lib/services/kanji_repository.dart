@@ -1,7 +1,19 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../models/jlpt_level.dart';
 import '../models/kanji.dart';
+
+/// Top-level parser executed in background isolate via compute()
+List<Kanji> _parseKanjiJson(String jsonString) {
+  final dynamic decoded = jsonDecode(jsonString);
+  if (decoded is List) {
+    return decoded
+        .map((item) => Kanji.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+  return const [];
+}
 
 /// Extensible criteria for querying Kanji.
 /// Can be extended in the future without breaking notification or database layers.
@@ -31,22 +43,25 @@ class KanjiFilterCriteria {
 /// Central repository providing access to Kanji entries and filtering.
 class KanjiRepository {
   final List<Kanji> _allKanji;
+  final Map<String, Kanji> _byId;
+  final Map<String, Kanji> _byCharacter;
 
   KanjiRepository({List<Kanji>? initialData})
-      : _allKanji = initialData ?? const [];
+      : _allKanji = initialData ?? const [],
+        _byId = {
+          for (final k in (initialData ?? const <Kanji>[])) k.id: k,
+        },
+        _byCharacter = {
+          for (final k in (initialData ?? const <Kanji>[])) k.character: k,
+        };
 
-  /// Automatically loads assets/data/kanji.json if present.
+  /// Automatically loads assets/data/kanji.json in a background worker isolate via compute.
   static Future<KanjiRepository> create() async {
     try {
       final jsonString = await rootBundle.loadString('assets/data/kanji.json');
-      final dynamic decoded = jsonDecode(jsonString);
-      if (decoded is List) {
-        final list = decoded
-            .map((item) => Kanji.fromJson(item as Map<String, dynamic>))
-            .toList();
-        if (list.isNotEmpty) {
-          return KanjiRepository(initialData: list);
-        }
+      final list = await compute(_parseKanjiJson, jsonString);
+      if (list.isNotEmpty) {
+        return KanjiRepository(initialData: list);
       }
     } catch (_) {}
     return KanjiRepository(initialData: const []);
@@ -98,11 +113,7 @@ class KanjiRepository {
   }
 
   Kanji? getById(String id) {
-    try {
-      return _allKanji.firstWhere((k) => k.id == id);
-    } catch (_) {
-      return null;
-    }
+    return _byId[id] ?? _byCharacter[id];
   }
 
   /// Returns count of Kanji grouped by each JLPT level.

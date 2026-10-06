@@ -25,6 +25,17 @@ class AppState extends ChangeNotifier {
   TelemetryData _telemetry = const TelemetryData();
   bool _isLoading = true;
 
+  // --- Memoized caches for O(1) performance ---
+  List<Kanji> _cachedEligiblePool = const [];
+  Set<String> _cachedPoolIds = const {};
+  Set<String> _cachedPoolChars = const {};
+  List<Kanji> _cachedKanjisViewedToday = const [];
+  int _cachedTodayPoolSeenCount = 0;
+  double _cachedTodayPoolCoverage = 0.0;
+  Set<String> _cachedKanjiIdsThisWeek = const {};
+  int _cachedThisWeekPoolSeenCount = 0;
+  double _cachedThisWeekPoolCoverage = 0.0;
+
   AppState({
     required StorageService storageService,
     required KanjiRepository kanjiRepository,
@@ -50,95 +61,92 @@ class AppState extends ChangeNotifier {
   KanjiRepository get repository => _kanjiRepository;
   KanjiSelectorService get selectorService => _selectorService;
 
-  /// Current eligible Kanji pool derived dynamically from cumulative progression
-  List<Kanji> get currentEligiblePool {
-    if (_settings.jlptLevel == null) return [];
-    return _selectorService.getEligiblePool(_settings.jlptLevel!);
+  /// Current eligible Kanji pool (cached in memory)
+  List<Kanji> get currentEligiblePool => _cachedEligiblePool;
+
+  /// List of Kanji models encountered today (cached in memory)
+  List<Kanji> get kanjisViewedToday => _cachedKanjisViewedToday;
+
+  /// Percentage (0.0 to 1.0) of active pool covered today (cached in memory)
+  double get todayPoolCoverage => _cachedTodayPoolCoverage;
+
+  /// Count of active pool Kanji seen today (cached in memory)
+  int get todayPoolSeenCount => _cachedTodayPoolSeenCount;
+
+  /// Set of unique Kanji IDs encountered during the current week (cached in memory)
+  Set<String> get kanjiIdsThisWeek => _cachedKanjiIdsThisWeek;
+
+  /// Percentage (0.0 to 1.0) of active pool covered this week (cached in memory)
+  double get thisWeekPoolCoverage => _cachedThisWeekPoolCoverage;
+
+  /// Count of active pool Kanji seen this week (cached in memory)
+  int get thisWeekPoolSeenCount => _cachedThisWeekPoolSeenCount;
+
+  void _recomputePoolCache() {
+    if (_settings.jlptLevel == null) {
+      _cachedEligiblePool = const [];
+      _cachedPoolIds = const {};
+      _cachedPoolChars = const {};
+    } else {
+      _cachedEligiblePool = _selectorService.getEligiblePool(_settings.jlptLevel!);
+      _cachedPoolIds = _cachedEligiblePool.map((k) => k.id).toSet();
+      _cachedPoolChars = _cachedEligiblePool.map((k) => k.character).toSet();
+    }
   }
 
-  /// List of Kanji models encountered today
-  List<Kanji> get kanjisViewedToday {
+  void _recomputeDerivedMetrics() {
+    // 1. Kanjis viewed today
     final result = <Kanji>[];
     final seenIds = <String>{};
-
     for (final id in _telemetry.kanjiIdsToday) {
       if (seenIds.contains(id)) continue;
-      Kanji? k = _kanjiRepository.getById(id);
-      if (k == null) {
-        try {
-          k = _kanjiRepository.getAll().firstWhere(
-                (item) => item.character == id || item.id == id,
-              );
-        } catch (_) {}
-      }
+      final k = _kanjiRepository.getById(id);
       if (k != null) {
         seenIds.add(id);
         result.add(k);
       }
     }
-    return result;
-  }
+    _cachedKanjisViewedToday = result;
 
-  /// Percentage (0.0 to 1.0) of active pool covered today
-  double get todayPoolCoverage {
-    final pool = currentEligiblePool;
-    if (pool.isEmpty) return 0.0;
-    final poolIds = pool.map((k) => k.id).toSet();
-    final poolChars = pool.map((k) => k.character).toSet();
-    final seenCount = _telemetry.kanjiIdsToday
-        .where((id) => poolIds.contains(id) || poolChars.contains(id))
-        .toSet()
-        .length;
-    return (seenCount / pool.length).clamp(0.0, 1.0);
-  }
+    // 2. Today's pool coverage
+    if (_cachedEligiblePool.isEmpty) {
+      _cachedTodayPoolSeenCount = 0;
+      _cachedTodayPoolCoverage = 0.0;
+    } else {
+      final seenCount = _telemetry.kanjiIdsToday
+          .where((id) => _cachedPoolIds.contains(id) || _cachedPoolChars.contains(id))
+          .toSet()
+          .length;
+      _cachedTodayPoolSeenCount = seenCount;
+      _cachedTodayPoolCoverage = (seenCount / _cachedEligiblePool.length).clamp(0.0, 1.0);
+    }
 
-  /// Count of active pool Kanji seen today
-  int get todayPoolSeenCount {
-    final pool = currentEligiblePool;
-    if (pool.isEmpty) return 0;
-    final poolIds = pool.map((k) => k.id).toSet();
-    final poolChars = pool.map((k) => k.character).toSet();
-    return _telemetry.kanjiIdsToday
-        .where((id) => poolIds.contains(id) || poolChars.contains(id))
-        .toSet()
-        .length;
-  }
-
-  /// Set of unique Kanji IDs encountered during the current week
-  Set<String> get kanjiIdsThisWeek {
+    // 3. This week's pool coverage
     final now = DateTime.now();
     final startOfWeek = DateTime(now.year, now.month, now.day)
         .subtract(Duration(days: now.weekday - 1));
 
-    final result = <String>{};
-    result.addAll(_telemetry.kanjiIdsToday);
+    final weekResult = <String>{};
+    weekResult.addAll(_telemetry.kanjiIdsToday);
 
     for (final entry in _dailyActivities.entries) {
       final date = DateTime.tryParse(entry.key);
       if (date != null && !date.isBefore(startOfWeek)) {
-        result.addAll(entry.value.kanjiIds);
+        weekResult.addAll(entry.value.kanjiIds);
       }
     }
-    return result;
-  }
+    _cachedKanjiIdsThisWeek = weekResult;
 
-  /// Percentage (0.0 to 1.0) of active pool covered this week
-  double get thisWeekPoolCoverage {
-    final pool = currentEligiblePool;
-    if (pool.isEmpty) return 0.0;
-    return (thisWeekPoolSeenCount / pool.length).clamp(0.0, 1.0);
-  }
-
-  /// Count of active pool Kanji seen this week
-  int get thisWeekPoolSeenCount {
-    final pool = currentEligiblePool;
-    if (pool.isEmpty) return 0;
-    final poolIds = pool.map((k) => k.id).toSet();
-    final poolChars = pool.map((k) => k.character).toSet();
-    final seen = kanjiIdsThisWeek;
-    return seen
-        .where((id) => poolIds.contains(id) || poolChars.contains(id))
-        .length;
+    if (_cachedEligiblePool.isEmpty) {
+      _cachedThisWeekPoolSeenCount = 0;
+      _cachedThisWeekPoolCoverage = 0.0;
+    } else {
+      final weekSeen = weekResult
+          .where((id) => _cachedPoolIds.contains(id) || _cachedPoolChars.contains(id))
+          .length;
+      _cachedThisWeekPoolSeenCount = weekSeen;
+      _cachedThisWeekPoolCoverage = (weekSeen / _cachedEligiblePool.length).clamp(0.0, 1.0);
+    }
   }
 
   /// Initialize state from local persistent storage
@@ -150,6 +158,8 @@ class AppState extends ChangeNotifier {
       _settings = await _storageService.loadSettings();
       _learningHistory = await _storageService.loadLearningHistory();
       _dailyActivities = await _storageService.loadDailyActivities();
+      _recomputePoolCache();
+      _recomputeDerivedMetrics();
       await _notificationService.initialize();
       await _notificationService.requestPermissions();
 
@@ -187,6 +197,7 @@ class AppState extends ChangeNotifier {
         _dailyActivities[todayStr] = activity;
         await _storageService.saveDailyActivity(activity);
       }
+      _recomputeDerivedMetrics();
       notifyListeners();
     } catch (_) {}
   }
@@ -206,6 +217,8 @@ class AppState extends ChangeNotifier {
       onboardingCompleted: true,
     );
     await _storageService.saveSettings(_settings);
+    _recomputePoolCache();
+    _recomputeDerivedMetrics();
 
     // Refresh notification schedule with new level pool
     await _notificationService.refreshNotificationScheduleForNewLevel(
@@ -229,6 +242,8 @@ class AppState extends ChangeNotifier {
 
     _settings = _settings.copyWith(jlptLevel: newLevel);
     await _storageService.saveSettings(_settings);
+    _recomputePoolCache();
+    _recomputeDerivedMetrics();
 
     // Immediately update the notification scheduler with the new pool
     await _notificationService.refreshNotificationScheduleForNewLevel(

@@ -92,7 +92,12 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
       backgroundColor: Colors.black,
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens,
+        children: List.generate(_screens.length, (index) {
+          return TickerMode(
+            enabled: index == _currentIndex,
+            child: _screens[index],
+          );
+        }),
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
