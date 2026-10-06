@@ -71,10 +71,10 @@ N & \text{if } C \le 30\% \quad \text{(Low engagement: flat } 1\times\text{, zer
 
 ## Flashcard Anatomy
 
-| Lock Screen Trigger | In-App Experience |
-| :---: | :---: |
-| <img src="assets/screenshots/shunkan_ss_full.jpeg" width="250" alt="Lock Screen Flashcard" /> | <img src="assets/screenshots/shunkan_sr.gif" width="250" alt="In-App Experience Walkthrough" /> |
-| *Passive glance on wake* | *In-app pool, details & copy* |
+| Lock Screen Glance | Expanded Flashcard | In-App Experience |
+| :---: | :---: | :---: |
+| <img src="assets/screenshots/shunkan_ss_full.jpeg" width="240" alt="Lock Screen Flashcard" /> | <img src="assets/screenshots/shunkan_expanded_ss.jpeg" width="240" alt="Expanded Flashcard in Notification Drawer" /> | <img src="assets/screenshots/shunkan_sr.gif" width="240" alt="In-App Experience Walkthrough" /> |
+| *Passive glance on wake* | *Full readings & compound vocab* | *In-app pool, details & copy* |
 
 * **Lock-Screen Glance (Collapsed)**:
   * **Kanji & Primary Meaning**: Large high-contrast character and core translation.
