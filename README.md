@@ -16,6 +16,59 @@ flowchart LR
 
 ---
 
+## Time-Windowed Catch-Up Shuffle Engine
+
+Shunkan uses an intelligent, unmanipulated **Time-Windowed Catch-Up Deck** running entirely within the native Android background service. Rather than artificially forcing fixed daily review quotas or static frequency buckets, Shunkan scales time windows mathematically by JLPT level and automatically prioritizes missed characters while capping deck size during periods of low activity.
+
+### 1. Mathematical Window Scaling
+
+Each JLPT level has a dedicated time window calibrated against standard daily unlock volumes ($\approx 70$ unlocks/day):
+
+$$\text{Window Duration (Days)} = \left\lceil \frac{\text{Pool Size}}{2 \times \text{Daily Unlocks (70)}} \right\rceil = \left\lceil \frac{\text{Pool Size}}{140} \right\rceil$$
+
+| JLPT Level | Pool Size ($N$) | Window Duration ($W$) | $30\%$ Engagement Threshold |
+| :--- | :---: | :---: | :---: |
+| **N5** | $\le 150$ (80 active) | **1 Day** (24 hours) | 24 glances |
+| **N4** | $\le 450$ (320 active) | **2 Days** (48 hours) | 96 glances |
+| **N3** | $\le 850$ (~650 active) | **4 Days** (96 hours) | 195 glances |
+| **N2** | $\le 1,500$ (~1,100 active) | **7 Days** (1 week) | 330 glances |
+| **N1** | $> 1,500$ (2,136 Joyo) | **14 Days** (2 weeks) | 641 glances |
+
+---
+
+### 2. The $\le 30\%$ Threshold Rule & Deck Generation Formula
+
+At the end of each window cycle (or when the deck is depleted), the engine checks user engagement:
+
+$$\text{Coverage Rate } C = \frac{S}{N} \times 100\%$$
+
+where $S$ is the number of unique Kanji viewed during the window, and $N$ is the total pool size.
+
+$$\text{Generated Deck Size} = \begin{cases} 
+N & \text{if } C \le 30\% \quad \text{(Low engagement: flat } 1\times\text{, zero inflation)} \\
+2N - S & \text{if } C > 30\% \quad \text{(Active engagement: Seen get } 1\times\text{, Missed get } 2\times\text{)} 
+\end{cases}$$
+
+#### Key Mathematical Properties:
+1. **Safety Floor ($C \le 30\%$):** If phone usage was low (e.g. busy, sick, or on vacation), missed Kanji are **not** multiplied. The deck generates exactly $N$ cards, preventing deck bloating and unreached card waste.
+2. **Absolute Ceiling ($C = 30.1\%$):** The theoretical maximum deck size under any condition is strictly capped at:
+   $$\text{Max Peak Cards} = 2N - 0.30N = \mathbf{1.70 \times N}$$
+3. **Natural Window 2 Convergence:** Because missed Kanji have $2\times$ density in the second window, they are encountered twice as frequently. By Window 2, overall coverage reaches $>85\%$, naturally bringing the deck size down to $\approx 1.15\times N$.
+
+---
+
+### 3. Deck Generation Model Across User Activity
+
+| JLPT Level | Pool ($N$) | Window ($W$) | Inactive ($\le 30\%$ coverage) | Peak Possible (at $30\%$) | **Typical User** ($65$ glances/day) | Active User ($80$ glances/day) |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **N5** | **80** | **1 Day** (24h) | **80 cards** | **136 cards** | **95 cards** <br>*(Seen: 65, Missed: 15)* | **80 cards** <br>*(100% full coverage)* |
+| **N4** | **320** | **2 Days** (48h) | **320 cards** | **544 cards** | **510 cards** <br>*(Seen: 130, Missed: 190)* | **480 cards** <br>*(Seen: 160, Missed: 160)* |
+| **N3** | **650** | **4 Days** (96h) | **650 cards** | **1,105 cards** | **1,040 cards** <br>*(Seen: 260, Missed: 390)* | **980 cards** <br>*(Seen: 320, Missed: 330)* |
+| **N2** | **1,100** | **7 Days** (1 Week) | **1,100 cards** | **1,870 cards** | **1,745 cards** <br>*(Seen: 455, Missed: 645)* | **1,640 cards** <br>*(Seen: 560, Missed: 540)* |
+| **N1** | **2,136** | **14 Days** (2 Weeks) | **2,136 cards** | **3,631 cards** | **3,362 cards** <br>*(Seen: 910, Missed: 1,226)* | **3,152 cards** <br>*(Seen: 1,120, Missed: 1,016)* |
+
+---
+
 ## Flashcard Anatomy
 
 | Lock Screen Trigger | In-App Experience |

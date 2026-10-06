@@ -15,23 +15,36 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        title: const Text(
-          'Settings',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header matching Today screen
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Settings',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Preferences & Configuration',
+                    style: TextStyle(
+                      color: Color(0xFFA1A1AA),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
             // Current level section
             Container(
               width: double.infinity,
@@ -147,47 +160,12 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
-
-            const SizedBox(height: 16),
-
-            // Minimal info section
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0A0A0A),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF27272A)),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'NOTIFICATIONS',
-                    style: TextStyle(
-                      color: Color(0xFF71717A),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Changing your level updates future lock-screen notifications immediately.',
-                    style: TextStyle(
-                      color: Color(0xFFA1A1AA),
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showChangeLevelModal(BuildContext context, JLPTLevel currentLevel) {
     showModalBottomSheet(

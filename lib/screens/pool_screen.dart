@@ -17,61 +17,63 @@ class PoolScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        title: const Text(
-          'Kanji Pool',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header matching Today screen
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Pool',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${pool.length} Kanji active (${currentLevel?.code ?? ''})',
+                    style: const TextStyle(
+                      color: Color(0xFFA1A1AA),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: pool.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No Kanji available in this pool.',
+                          style: TextStyle(color: Color(0xFF71717A), fontSize: 14),
+                        ),
+                      )
+                    : GridView.builder(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.85,
+                        ),
+                        itemCount: pool.length,
+                        itemBuilder: (context, index) {
+                          final kanji = pool[index];
+                          return _buildMinimalKanjiCard(context, kanji);
+                        },
+                      ),
+              ),
+            ],
           ),
         ),
       ),
-      body: pool.isEmpty
-          ? const Center(
-              child: Text(
-                'No Kanji available in this pool.',
-                style: TextStyle(color: Color(0xFF71717A), fontSize: 14),
-              ),
-            )
-          : CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                    child: Text(
-                      '${pool.length} Kanji active (${currentLevel?.code ?? ''})',
-                      style: const TextStyle(
-                        color: Color(0xFFA1A1AA),
-                        fontSize: 14,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
-                  sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 0.85,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final kanji = pool[index];
-                        return _buildMinimalKanjiCard(context, kanji);
-                      },
-                      childCount: pool.length,
-                    ),
-                  ),
-                ),
-              ],
-            ),
     );
   }
 
@@ -88,15 +90,19 @@ class PoolScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Character
+            // Character (Enlarged ~2x)
             Expanded(
               child: Center(
-                child: Text(
-                  kanji.character,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 52,
-                    fontWeight: FontWeight.bold,
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: Text(
+                    kanji.character,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 96,
+                      fontWeight: FontWeight.bold,
+                      height: 1.0,
+                    ),
                   ),
                 ),
               ),

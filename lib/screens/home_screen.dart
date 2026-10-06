@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/jlpt_level.dart';
-import '../services/lockscreen_manager.dart';
 import '../state/app_state.dart';
+import '../widgets/github_yearly_graph.dart';
+import '../widgets/rolling_week_pixel_matrix.dart';
 
 /// Minimalist Home tab in pure black and white.
-/// Focused on passive habit telemetry (glances, Kanji cycled, streak).
+/// Focused on passive habit telemetry, pool coverage, and immersion time.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -14,13 +15,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
-  TelemetryData _telemetry = const TelemetryData();
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadTelemetry();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AppState>().refreshTelemetry();
+    });
   }
 
   @override
@@ -32,243 +33,206 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _loadTelemetry();
+      context.read<AppState>().refreshTelemetry();
     }
   }
 
-  Future<void> _loadTelemetry() async {
-    final data = await LockscreenManager.getTelemetry();
-    if (mounted) {
-      setState(() => _telemetry = data);
+  String _formatExposure(int totalSeconds) {
+    if (totalSeconds < 60) return '${totalSeconds}s';
+    final minutes = totalSeconds ~/ 60;
+    final remainingSec = totalSeconds % 60;
+    if (minutes < 60) {
+      return remainingSec == 0 ? '${minutes}m' : '${minutes}m ${remainingSec}s';
     }
+    final hours = minutes ~/ 60;
+    final remainingMin = minutes % 60;
+    return remainingMin == 0 ? '${hours}h' : '${hours}h ${remainingMin}m';
   }
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final currentLevel = appState.currentLevel ?? JLPTLevel.n5;
+    final telemetry = appState.telemetry;
+    final pool = appState.currentEligiblePool;
+    final windowHours = _getWindowHours(pool.length);
+    final totalCycleDays = (windowHours / 24).ceil();
+    final startMs = telemetry.windowStartMs > 0
+        ? telemetry.windowStartMs
+        : DateTime.now().millisecondsSinceEpoch;
+    final elapsedMs = DateTime.now().millisecondsSinceEpoch - startMs;
+    final daysElapsed =
+        elapsedMs > 0 ? (elapsedMs / (24 * 3600 * 1000)).floor() : 0;
+    final currentCycleDay = (daysElapsed + 1).clamp(1, totalCycleDays);
+    final unseenCount = pool.isNotEmpty
+        ? (pool.length - telemetry.windowSeenCount).clamp(0, pool.length)
+        : 0;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-              // App Title & Brand Logo
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Shunkan',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
-                        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final content = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header: Brand & App Icon
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Shunkan',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Passive lock-screen Kanji',
-                        style: TextStyle(
-                          color: Color(0xFFA1A1AA),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.asset(
-                      'assets/icons/app_logo.png',
-                      width: 46,
-                      height: 46,
-                      fit: BoxFit.cover,
                     ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-
-              // Active Level Card (Minimalist B&W)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A0A0A),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF27272A), width: 1),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.asset(
+                        'assets/icons/app_logo.png',
+                        width: 38,
+                        height: 38,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ],
                 ),
-                child: Column(
+
+                const Spacer(flex: 2),
+
+                // Current Level (Unboxed)
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'CURRENT LEVEL',
                       style: TextStyle(
                         color: Color(0xFF71717A),
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
                       currentLevel.code,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 56,
+                        fontSize: 52,
                         fontWeight: FontWeight.w900,
                         height: 1.0,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      currentLevel.displayName,
-                      style: const TextStyle(
-                        color: Color(0xFFE4E4E7),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        letterSpacing: -1.5,
                       ),
                     ),
                   ],
                 ),
-              ),
 
-              const SizedBox(height: 16),
+                const Spacer(flex: 3),
+                const Divider(color: Color(0xFF27272A), height: 1),
+                const Spacer(flex: 3),
 
-              // Passive Habit Telemetry Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A0A0A),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF27272A), width: 1),
-                ),
-                child: Column(
+                // 0. CURRENT CYCLE: Live Window Telemetry (Option 1)
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'TODAY\'S LOCK ACTIVITY',
+                      'CURRENT CYCLE',
                       style: TextStyle(
                         color: Color(0xFF71717A),
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTelemetryMetric(
-                            value: '${_telemetry.glancesToday}',
-                            label: 'Glances',
-                            sublabel: 'Screen locks',
-                          ),
-                        ),
-                        Container(width: 1, height: 42, color: const Color(0xFF27272A)),
-                        Expanded(
-                          child: _buildTelemetryMetric(
-                            value: '${_telemetry.uniqueKanjiToday}',
-                            label: 'Kanji Seen',
-                            sublabel: 'Unique chars',
-                          ),
-                        ),
-                        Container(width: 1, height: 42, color: const Color(0xFF27272A)),
-                        Expanded(
-                          child: _buildTelemetryMetric(
-                            value: '${_telemetry.streakDays}d',
-                            label: 'Habit Streak',
-                            sublabel: 'Days active',
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_telemetry.lastKanji.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      const Divider(color: Color(0xFF1F1F23)),
-                      const SizedBox(height: 10),
-                      Row(
+                    const SizedBox(height: 12),
+                    IntrinsicHeight(
+                      child: Row(
                         children: [
-                          const Text(
-                            'LAST ON LOCK: ',
-                            style: TextStyle(
-                              color: Color(0xFF71717A),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1,
+                          Expanded(
+                            child: _buildTelemetryMetric(
+                              value: 'Day $currentCycleDay / $totalCycleDays',
+                              label: 'CYCLE DAY',
                             ),
                           ),
-                          Text(
-                            '${_telemetry.lastKanji}  (${_telemetry.lastMeaning})',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                          Container(
+                            width: 1,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            color: const Color(0xFF27272A),
+                          ),
+                          Expanded(
+                            child: _buildTelemetryMetric(
+                              value: '${telemetry.windowSeenCount} / ${pool.length}',
+                              label: 'SEEN',
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            color: const Color(0xFF27272A),
+                          ),
+                          Expanded(
+                            child: _buildTelemetryMetric(
+                              value: '$unseenCount',
+                              label: 'UNSEEN',
                             ),
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ],
                 ),
-              ),
 
-              const SizedBox(height: 16),
+                const Spacer(flex: 3),
+                const Divider(color: Color(0xFF27272A), height: 1),
+                const Spacer(flex: 3),
 
-              // Lock Screen Info Banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A0A0A),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF27272A), width: 1),
-                ),
-                child: Row(
+                // 1. TODAY: Today's Lock Activity (Unboxed)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Color(0x14FFFFFF),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.lock_outline,
-                        color: Colors.white,
-                        size: 20,
+                    const Text(
+                      'TODAY',
+                      style: TextStyle(
+                        color: Color(0xFF71717A),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 12),
+                    IntrinsicHeight(
+                      child: Row(
                         children: [
-                          Text(
-                            'Active on Lock Screen',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                          Expanded(
+                            child: _buildTelemetryMetric(
+                              value: '${telemetry.glancesToday}',
+                              label: 'GLANCES',
                             ),
                           ),
-                          SizedBox(height: 4),
-                          Text(
-                            'New Kanji preloads seamlessly each time you lock your phone.',
-                            style: TextStyle(
-                              color: Color(0xFFA1A1AA),
-                              fontSize: 12,
-                              height: 1.3,
+                          Container(
+                            width: 1,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            color: const Color(0xFF27272A),
+                          ),
+                          Expanded(
+                            child: _buildTelemetryMetric(
+                              value: '${telemetry.uniqueKanjiToday}',
+                              label: 'KANJI SEEN',
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            color: const Color(0xFF27272A),
+                          ),
+                          Expanded(
+                            child: _buildTelemetryMetric(
+                              value: _formatExposure(telemetry.estimatedSecondsToday),
+                              label: 'IMMERSION',
                             ),
                           ),
                         ],
@@ -276,48 +240,108 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
-              ),
 
-              const Spacer(),
-            ],
-          ),
+                const Spacer(flex: 3),
+                const Divider(color: Color(0xFF27272A), height: 1),
+                const Spacer(flex: 3),
+
+                // 2. WEEK: Rolling 7-Day Modern Minimal Micro-Cards
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'LAST 7 DAYS',
+                      style: TextStyle(
+                        color: Color(0xFF71717A),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    RollingWeekPixelMatrix(
+                      activities: appState.dailyActivities,
+                      todayGlances: telemetry.glancesToday,
+                      todayUniqueKanji: telemetry.uniqueKanjiToday,
+                      windowSeenCount: telemetry.windowSeenCount,
+                      poolSize: pool.length,
+                      windowHours: windowHours,
+                      windowStartMs: telemetry.windowStartMs,
+                      cyclesCompleted: telemetry.cyclesCompleted,
+                    ),
+                  ],
+                ),
+
+                const Spacer(flex: 3),
+                const Divider(color: Color(0xFF27272A), height: 1),
+                const Spacer(flex: 3),
+
+                // 3. CYCLE & ACTIVITY: Normalized Heatmap
+                GitHubYearlyKanjiGraph(
+                  activities: appState.dailyActivities,
+                  todayGlances: telemetry.glancesToday,
+                  todayUniqueKanji: telemetry.uniqueKanjiToday,
+                  cyclesCompleted: telemetry.cyclesCompleted,
+                ),
+              ],
+            );
+
+            // If the viewport has ample vertical space, lock to zero-scroll with Spacers.
+            // If on an unusually constrained screen (< 520px), allow fallback scroll.
+            if (constraints.maxHeight >= 520) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                child: content,
+              );
+            }
+
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+              child: content,
+            );
+          },
         ),
       ),
     );
   }
 
+  int _getWindowHours(int poolSize) {
+    if (poolSize <= 150) return 24;
+    if (poolSize <= 450) return 48;
+    if (poolSize <= 850) return 96;
+    if (poolSize <= 1500) return 168;
+    return 336;
+  }
+
   Widget _buildTelemetryMetric({
     required String value,
     required String label,
-    required String sublabel,
   }) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.5,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           label,
           style: const TextStyle(
-            color: Color(0xFFE4E4E7),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          sublabel,
-          style: const TextStyle(
             color: Color(0xFF71717A),
             fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.0,
           ),
         ),
       ],
