@@ -1,14 +1,16 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/daily_activity.dart';
 import '../models/learning_record.dart';
 import '../models/user_settings.dart';
 
-/// Handles persistent local storage for settings and learning history.
+/// Handles persistent local storage for settings, learning history, and daily habit metrics.
 /// Guarantees that user settings (such as JLPT level) are stored independently
 /// from user learning history.
 class StorageService {
   static const String _keySettings = 'app_user_settings';
   static const String _keyLearningHistory = 'app_user_learning_history';
+  static const String _keyDailyActivities = 'app_daily_activities';
 
   final SharedPreferences? _prefs;
 
@@ -92,6 +94,42 @@ class StorageService {
       await _prefs!.setString(_keyLearningHistory, jsonStr);
     } else {
       _memoryCache[_keyLearningHistory] = jsonStr;
+    }
+  }
+
+  // --- Daily Activity & Exposure Time Tracking ---
+
+  Future<Map<String, DailyActivity>> loadDailyActivities() async {
+    try {
+      String? jsonStr;
+      if (_prefs != null) {
+        jsonStr = _prefs!.getString(_keyDailyActivities);
+      } else {
+        jsonStr = _memoryCache[_keyDailyActivities] as String?;
+      }
+
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final Map<String, dynamic> rawMap = jsonDecode(jsonStr);
+        return rawMap.map(
+          (key, value) => MapEntry(
+            key,
+            DailyActivity.fromJson(value as Map<String, dynamic>),
+          ),
+        );
+      }
+    } catch (_) {}
+    return {};
+  }
+
+  Future<void> saveDailyActivity(DailyActivity activity) async {
+    final activities = await loadDailyActivities();
+    activities[activity.date] = activity;
+    final rawMap = activities.map((key, value) => MapEntry(key, value.toJson()));
+    final jsonStr = jsonEncode(rawMap);
+    if (_prefs != null) {
+      await _prefs!.setString(_keyDailyActivities, jsonStr);
+    } else {
+      _memoryCache[_keyDailyActivities] = jsonStr;
     }
   }
 }

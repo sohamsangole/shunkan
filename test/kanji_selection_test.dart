@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kanji_learning_app/models/daily_activity.dart';
 import 'package:kanji_learning_app/models/jlpt_level.dart';
 import 'package:kanji_learning_app/models/kanji.dart';
 import 'package:kanji_learning_app/services/kanji_repository.dart';
@@ -167,6 +168,25 @@ void main() {
       // Verification: History is completely preserved!
       expect(state.learningHistory.containsKey('k_n5_001'), isTrue);
       expect(state.learningHistory['k_n5_001']!.timesCorrect, equals(1));
+    });
+
+    test('DailyActivity serialization and StorageService persistence', () async {
+      final storage = StorageService();
+      const record = DailyActivity(
+        date: '2026-10-06',
+        glances: 15,
+        uniqueKanji: 10,
+        estimatedSeconds: 60,
+        kanjiIds: ['k_n5_001', 'k_n5_002'],
+      );
+
+      await storage.saveDailyActivity(record);
+      final loaded = await storage.loadDailyActivities();
+      expect(loaded.containsKey('2026-10-06'), isTrue);
+      expect(loaded['2026-10-06']!.glances, equals(15));
+      expect(loaded['2026-10-06']!.uniqueKanji, equals(10));
+      expect(loaded['2026-10-06']!.estimatedSeconds, equals(60));
+      expect(loaded['2026-10-06']!.kanjiIds, equals(['k_n5_001', 'k_n5_002']));
     });
   });
 }

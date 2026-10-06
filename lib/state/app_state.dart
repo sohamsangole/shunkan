@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../models/daily_activity.dart';
 import '../models/jlpt_level.dart';
 import '../models/kanji.dart';
 import '../models/learning_record.dart';
@@ -20,6 +21,8 @@ class AppState extends ChangeNotifier {
 
   UserSettings _settings = const UserSettings();
   Map<String, LearningRecord> _learningHistory = {};
+  Map<String, DailyActivity> _dailyActivities = {};
+  TelemetryData _telemetry = const TelemetryData();
   bool _isLoading = true;
 
   AppState({
@@ -40,6 +43,9 @@ class AppState extends ChangeNotifier {
   bool get isLoading => _isLoading;
   Map<String, LearningRecord> get learningHistory =>
       Map.unmodifiable(_learningHistory);
+  Map<String, DailyActivity> get dailyActivities =>
+      Map.unmodifiable(_dailyActivities);
+  TelemetryData get telemetry => _telemetry;
 
   KanjiRepository get repository => _kanjiRepository;
   KanjiSelectorService get selectorService => _selectorService;
@@ -50,6 +56,91 @@ class AppState extends ChangeNotifier {
     return _selectorService.getEligiblePool(_settings.jlptLevel!);
   }
 
+  /// List of Kanji models encountered today
+  List<Kanji> get kanjisViewedToday {
+    final result = <Kanji>[];
+    final seenIds = <String>{};
+
+    for (final id in _telemetry.kanjiIdsToday) {
+      if (seenIds.contains(id)) continue;
+      Kanji? k = _kanjiRepository.getById(id);
+      if (k == null) {
+        try {
+          k = _kanjiRepository.getAll().firstWhere(
+                (item) => item.character == id || item.id == id,
+              );
+        } catch (_) {}
+      }
+      if (k != null) {
+        seenIds.add(id);
+        result.add(k);
+      }
+    }
+    return result;
+  }
+
+  /// Percentage (0.0 to 1.0) of active pool covered today
+  double get todayPoolCoverage {
+    final pool = currentEligiblePool;
+    if (pool.isEmpty) return 0.0;
+    final poolIds = pool.map((k) => k.id).toSet();
+    final poolChars = pool.map((k) => k.character).toSet();
+    final seenCount = _telemetry.kanjiIdsToday
+        .where((id) => poolIds.contains(id) || poolChars.contains(id))
+        .toSet()
+        .length;
+    return (seenCount / pool.length).clamp(0.0, 1.0);
+  }
+
+  /// Count of active pool Kanji seen today
+  int get todayPoolSeenCount {
+    final pool = currentEligiblePool;
+    if (pool.isEmpty) return 0;
+    final poolIds = pool.map((k) => k.id).toSet();
+    final poolChars = pool.map((k) => k.character).toSet();
+    return _telemetry.kanjiIdsToday
+        .where((id) => poolIds.contains(id) || poolChars.contains(id))
+        .toSet()
+        .length;
+  }
+
+  /// Set of unique Kanji IDs encountered during the current week
+  Set<String> get kanjiIdsThisWeek {
+    final now = DateTime.now();
+    final startOfWeek = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday - 1));
+
+    final result = <String>{};
+    result.addAll(_telemetry.kanjiIdsToday);
+
+    for (final entry in _dailyActivities.entries) {
+      final date = DateTime.tryParse(entry.key);
+      if (date != null && !date.isBefore(startOfWeek)) {
+        result.addAll(entry.value.kanjiIds);
+      }
+    }
+    return result;
+  }
+
+  /// Percentage (0.0 to 1.0) of active pool covered this week
+  double get thisWeekPoolCoverage {
+    final pool = currentEligiblePool;
+    if (pool.isEmpty) return 0.0;
+    return (thisWeekPoolSeenCount / pool.length).clamp(0.0, 1.0);
+  }
+
+  /// Count of active pool Kanji seen this week
+  int get thisWeekPoolSeenCount {
+    final pool = currentEligiblePool;
+    if (pool.isEmpty) return 0;
+    final poolIds = pool.map((k) => k.id).toSet();
+    final poolChars = pool.map((k) => k.character).toSet();
+    final seen = kanjiIdsThisWeek;
+    return seen
+        .where((id) => poolIds.contains(id) || poolChars.contains(id))
+        .length;
+  }
+
   /// Initialize state from local persistent storage
   Future<void> initialize() async {
     _isLoading = true;
@@ -58,6 +149,7 @@ class AppState extends ChangeNotifier {
     try {
       _settings = await _storageService.loadSettings();
       _learningHistory = await _storageService.loadLearningHistory();
+      _dailyActivities = await _storageService.loadDailyActivities();
       await _notificationService.initialize();
       await _notificationService.requestPermissions();
 
@@ -67,10 +159,44 @@ class AppState extends ChangeNotifier {
           await LockscreenManager.startService();
         }
       }
+      await refreshTelemetry();
     } catch (_) {}
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  /// Refreshes passive habit telemetry from native service and persists today's activity
+  Future<void> refreshTelemetry() async {
+    try {
+      final data = await LockscreenManager.getTelemetry();
+      _telemetry = data;
+
+      final now = DateTime.now();
+      final todayStr =
+          "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      if (data.glancesToday > 0 || data.kanjiIdsToday.isNotEmpty) {
+        final activity = DailyActivity(
+          date: todayStr,
+          glances: data.glancesToday,
+          uniqueKanji: data.uniqueKanjiToday,
+          estimatedSeconds: data.estimatedSecondsToday,
+          kanjiIds: data.kanjiIdsToday,
+        );
+        _dailyActivities[todayStr] = activity;
+        await _storageService.saveDailyActivity(activity);
+      }
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Records an active kanji view/review from within the app
+  Future<void> recordKanjiView(String kanjiId) async {
+    // Record in learning history
+    await recordReview(kanjiId, isCorrect: true);
+    // Refresh telemetry to ensure consistency
+    await refreshTelemetry();
   }
 
   /// First launch: Save initial JLPT level and complete onboarding
@@ -111,7 +237,6 @@ class AppState extends ChangeNotifier {
     );
 
     if (_settings.lockscreenRefreshEnabled) {
-      await LockscreenManager.resetGlanceCounts();
       await LockscreenManager.updatePool(currentEligiblePool, refreshImmediate: true);
     }
 
