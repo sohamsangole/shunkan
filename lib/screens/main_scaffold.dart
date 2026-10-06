@@ -6,8 +6,9 @@ import '../state/app_state.dart';
 import 'home_screen.dart';
 import 'pool_screen.dart';
 import 'settings_screen.dart';
+import 'today_screen.dart';
 
-/// Main navigation scaffold providing 3 minimal tabs: Home, Pool, and Settings.
+/// Main navigation scaffold providing 4 minimal tabs: Home, Today, Pool, and Settings.
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
 
@@ -20,6 +21,7 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
 
   final List<Widget> _screens = const [
     HomeScreen(),
+    TodayScreen(),
     PoolScreen(),
     SettingsScreen(),
   ];
@@ -72,7 +74,7 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
     debugPrint('[MainScaffold] Found target: ${target?.character}');
     if (target != null && mounted) {
       setState(() {
-        _currentIndex = 1; // Switch to Pool tab
+        _currentIndex = 2; // Switch to Pool tab (now index 2)
       });
       // Show detail modal for this Kanji
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -114,6 +116,11 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home),
               label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.history_toggle_off),
+              activeIcon: Icon(Icons.history),
+              label: 'Today',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.layers_outlined),
