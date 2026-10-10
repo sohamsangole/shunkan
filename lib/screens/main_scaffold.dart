@@ -3,12 +3,14 @@ import 'package:provider/provider.dart';
 import '../models/kanji.dart';
 import '../services/lockscreen_manager.dart';
 import '../state/app_state.dart';
+import '../widgets/floating_glass_dock.dart';
 import 'home_screen.dart';
 import 'pool_screen.dart';
 import 'settings_screen.dart';
 import 'today_screen.dart';
 
-/// Main navigation scaffold providing 4 minimal tabs: Home, Today, Pool, and Settings.
+/// Main navigation scaffold providing a floating frosted glass dock
+/// with 3 zen tabs: 家 (Home), 今日 (Today), and 設定 (Settings).
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
 
@@ -25,7 +27,6 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
   final List<Widget> _screens = const [
     HomeScreen(),
     TodayScreen(),
-    PoolScreen(),
     SettingsScreen(),
   ];
 
@@ -90,13 +91,12 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
     if (target != null && mounted) {
       final kanjiToOpen = target;
       setState(() {
-        _currentIndex = 2; // Switch to Pool tab (now index 2)
+        _currentIndex = 1; // Switch to Today tab
       });
       // Show detail modal for this Kanji
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         if (_isModalOpen) {
-          // If modal is already open, pop it before showing the new one
           Navigator.of(context, rootNavigator: true).pop();
         }
         _isModalOpen = true;
@@ -112,57 +112,39 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: List.generate(_screens.length, (index) {
-          return TickerMode(
-            enabled: index == _currentIndex,
-            child: _screens[index],
-          );
-        }),
-      ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.black,
-          border: Border(
-            top: BorderSide(color: Color(0xFF27272A), width: 1),
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          // Screens Stack
+          Positioned.fill(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: List.generate(_screens.length, (index) {
+                return TickerMode(
+                  enabled: index == _currentIndex,
+                  child: _screens[index],
+                );
+              }),
+            ),
           ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          backgroundColor: Colors.black,
-          selectedItemColor: Colors.white,
-          unselectedItemColor: const Color(0xFF71717A),
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
-          elevation: 0,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home',
+
+          // Floating Glass Capsule Dock
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: bottomInset + 18,
+            child: Center(
+              child: FloatingGlassDock(
+                currentIndex: _currentIndex,
+                onTap: (index) => setState(() => _currentIndex = index),
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.history_toggle_off),
-              activeIcon: Icon(Icons.history),
-              label: 'Today',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.layers_outlined),
-              activeIcon: Icon(Icons.layers),
-              label: 'Pool',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: 'Settings',
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
