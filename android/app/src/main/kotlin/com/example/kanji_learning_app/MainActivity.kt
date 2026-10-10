@@ -167,6 +167,7 @@ class MainActivity : FlutterActivity() {
                     val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
                     val savedDate = prefs.getString("telemetry_date", "") ?: ""
                     val glancesToday = if (savedDate == today) prefs.getInt("telemetry_glances_today", 0) else 0
+                    val kanjiSet = if (savedDate == today) (prefs.getStringSet("telemetry_kanji_today", null) ?: emptySet()) else emptySet()
                     val cal = java.util.Calendar.getInstance()
                     cal.add(java.util.Calendar.DATE, -1)
                     val yesterday = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(cal.time)
