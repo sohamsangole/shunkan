@@ -1,4 +1,4 @@
-# <img src="assets/icons/app_logo.png" width="38" valign="middle" /> Shunkan
+# <img src="assets/icons/shunkan_logo.png" width="38" valign="middle" /> Shunkan
 
 An Android passive micro-learning engine built with Flutter and native Kotlin. Shunkan embeds Japanese Kanji flashcards directly into the Android lock screen by intercepting display sleep cycles, turning routine phone checks into automated spaced repetitions.
 

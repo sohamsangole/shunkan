@@ -93,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: Image.asset(
-                        'assets/icons/app_logo.png',
+                        'assets/icons/shunkan_logo.png',
                         width: 38,
                         height: 38,
                         fit: BoxFit.cover,

@@ -12,6 +12,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.text.Html
+import android.view.View
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -232,31 +233,49 @@ class LockscreenKanjiService : Service() {
                     .apply()
             } catch (_: Exception) {}
 
-            // Format vocabulary examples (max 2 each)
-            val onExamplesList  = buildExampleLines(item.optJSONArray("onExamples"))
-            val kunExamplesList = buildExampleLines(item.optJSONArray("kunExamples"))
+            // Resolve JLPT level badge text
+            val rawJlpt = item.optString("jlptLevel", "").ifEmpty {
+                item.optJSONObject("metadata")?.optString("jlpt", "") ?: ""
+            }
+            val badgeText = if (rawJlpt.isNotEmpty()) {
+                "${rawJlpt.uppercase().replace("KANJI", "").trim()} KANJI"
+            } else {
+                "N5 KANJI"
+            }
+
+            // Format vocabulary example HTML (clean bulleted style matching mockup)
+            val onExampleHtml  = buildExampleHtml(item.optJSONArray("onExamples"))
+            val kunExampleHtml = buildExampleHtml(item.optJSONArray("kunExamples"))
 
             // Collapsed view
             val collapsedView = RemoteViews(packageName, R.layout.notification_collapsed).apply {
                 setTextViewText(R.id.noti_kanji_char, character)
                 setTextViewText(R.id.noti_meaning, primaryMeaning.uppercase())
-                setTextViewText(R.id.noti_on_reading, "ON: $onyomiDisplay")
-                setTextViewText(R.id.noti_kun_reading, "KUN: $kunyomiDisplay")
+                setTextViewText(R.id.noti_on_reading, onyomiDisplay)
+                setTextViewText(R.id.noti_kun_reading, kunyomiDisplay)
             }
 
             // Expanded view
             val expandedView = RemoteViews(packageName, R.layout.notification_expanded).apply {
                 setTextViewText(R.id.noti_kanji_char_large, character)
                 setTextViewText(R.id.noti_primary_meaning_large, primaryMeaning.uppercase())
-                setTextViewText(R.id.noti_meanings_full, "MEANING: ${meaningsDisplay.uppercase()}")
+                setTextViewText(R.id.noti_jlpt_badge, badgeText)
 
-                val onSb = StringBuilder("<b>ON:</b> $onyomiDisplay")
-                if (onExamplesList.isNotEmpty()) onSb.append("<br>").append(onExamplesList.joinToString("<br>"))
-                setTextViewText(R.id.noti_on_section, Html.fromHtml(onSb.toString(), Html.FROM_HTML_MODE_LEGACY))
+                setTextViewText(R.id.noti_on_reading_expanded, onyomiDisplay)
+                if (onExampleHtml.isNotEmpty()) {
+                    setViewVisibility(R.id.noti_on_example, View.VISIBLE)
+                    setTextViewText(R.id.noti_on_example, onExampleHtml)
+                } else {
+                    setViewVisibility(R.id.noti_on_example, View.GONE)
+                }
 
-                val kunSb = StringBuilder("<b>KUN:</b> $kunyomiDisplay")
-                if (kunExamplesList.isNotEmpty()) kunSb.append("<br>").append(kunExamplesList.joinToString("<br>"))
-                setTextViewText(R.id.noti_kun_section, Html.fromHtml(kunSb.toString(), Html.FROM_HTML_MODE_LEGACY))
+                setTextViewText(R.id.noti_kun_reading_expanded, kunyomiDisplay)
+                if (kunExampleHtml.isNotEmpty()) {
+                    setViewVisibility(R.id.noti_kun_example, View.VISIBLE)
+                    setTextViewText(R.id.noti_kun_example, kunExampleHtml)
+                } else {
+                    setViewVisibility(R.id.noti_kun_example, View.GONE)
+                }
             }
 
             android.util.Log.i("LockscreenKanjiService", "Showing kanjiId=$kanjiId char=$character")
@@ -275,9 +294,11 @@ class LockscreenKanjiService : Service() {
 
             collapsedView.setOnClickPendingIntent(R.id.noti_collapsed_root, pendingIntent)
             expandedView.setOnClickPendingIntent(R.id.noti_expanded_root, pendingIntent)
+            expandedView.setOnClickPendingIntent(R.id.noti_view_details, pendingIntent)
 
             val notification = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification_haru)
+                .setColor(0xFFB4E197.toInt())
                 .setStyle(NotificationCompat.DecoratedCustomViewStyle())
                 .setCustomContentView(collapsedView)
                 .setCustomBigContentView(expandedView)
@@ -287,7 +308,8 @@ class LockscreenKanjiService : Service() {
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
                 .setOnlyAlertOnce(true)
                 .setOngoing(true)
-                .setShowWhen(false)
+                .setShowWhen(true)
+                .setWhen(System.currentTimeMillis())
                 .setContentIntent(pendingIntent)
                 .build()
 
@@ -312,17 +334,21 @@ class LockscreenKanjiService : Service() {
         } catch (_: Exception) {}
     }
 
-    private fun buildExampleLines(arr: JSONArray?): List<String> {
-        if (arr == null) return emptyList()
-        val out = mutableListOf<String>()
-        for (i in 0 until minOf(arr.length(), 2)) {
+    private fun buildExampleHtml(arr: JSONArray?): CharSequence {
+        if (arr == null || arr.length() == 0) return ""
+        val sb = StringBuilder()
+        for (i in 0 until minOf(arr.length(), 1)) {
             val ex = arr.getJSONObject(i)
-            val w  = ex.optString("word", "")
-            val r  = ex.optString("reading", "")
-            val m  = ex.optString("meaning", "")
-            if (w.isNotEmpty()) out.add("• $w ($r) — $m")
+            val w  = ex.optString("word", "").trim()
+            val r  = ex.optString("reading", "").trim()
+            val m  = ex.optString("meaning", "").trim()
+            if (w.isEmpty()) continue
+
+            val wordWithReading = if (r.isNotEmpty() && r != w) "$w（$r）" else w
+            if (sb.isNotEmpty()) sb.append("<br>")
+            sb.append("<font color=\"#B4E197\">•</font>&nbsp;&nbsp;<font color=\"#FFFFFF\">$wordWithReading</font>&nbsp;&nbsp;<font color=\"#71717A\">•</font>&nbsp;&nbsp;<font color=\"#D4D4D8\">$m</font>")
         }
-        return out
+        return Html.fromHtml(sb.toString(), Html.FROM_HTML_MODE_LEGACY)
     }
 
     // -------------------------------------------------------------------------

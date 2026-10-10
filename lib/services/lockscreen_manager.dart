@@ -44,6 +44,7 @@ class LockscreenManager {
         'meaningsDisplay': k.meaningsDisplay,
         'onyomiDisplay': k.onyomiHiraganaDisplay,
         'kunyomiDisplay': k.kunyomiDisplay,
+        'jlptLevel': k.metadata.jlpt.name.toUpperCase(),
         'onExamples': k.onExamples.map((e) => {
           'word': e.word,
           'reading': e.reading,
