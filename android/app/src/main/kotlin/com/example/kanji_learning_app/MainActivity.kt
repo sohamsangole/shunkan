@@ -31,8 +31,16 @@ class MainActivity : FlutterActivity() {
         }
         android.util.Log.i("KanjiApp", "handleIntent called with action=${intent?.action}, id=$id")
         if (!id.isNullOrEmpty()) {
-            pendingKanjiId = id
-            methodChannel?.invokeMethod("onOpenKanji", id)
+            intent?.removeExtra("kanji_id")
+            intent?.data = null
+
+            val channel = methodChannel
+            if (channel != null) {
+                pendingKanjiId = null
+                channel.invokeMethod("onOpenKanji", id)
+            } else {
+                pendingKanjiId = id
+            }
         }
     }
 
@@ -159,8 +167,11 @@ class MainActivity : FlutterActivity() {
                     val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
                     val savedDate = prefs.getString("telemetry_date", "") ?: ""
                     val glancesToday = if (savedDate == today) prefs.getInt("telemetry_glances_today", 0) else 0
-                    val kanjiSet = if (savedDate == today) (prefs.getStringSet("telemetry_kanji_today", null) ?: emptySet()) else emptySet()
-                    val streak = prefs.getInt("telemetry_streak", 1)
+                    val cal = java.util.Calendar.getInstance()
+                    cal.add(java.util.Calendar.DATE, -1)
+                    val yesterday = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(cal.time)
+                    val isStreakActive = savedDate == today || savedDate == yesterday
+                    val streak = if (isStreakActive) prefs.getInt("telemetry_streak", 1) else 0
                     val lastKanji = prefs.getString("telemetry_last_kanji", "") ?: ""
                     val lastMeaning = prefs.getString("telemetry_last_meaning", "") ?: ""
                     val countsTodayStr = if (savedDate == today) prefs.getString("telemetry_kanji_counts_today", "{}") ?: "{}" else "{}"
@@ -178,9 +189,16 @@ class MainActivity : FlutterActivity() {
                     val windowStartMs = prefs.getLong(LockscreenKanjiService.KEY_WINDOW_START_MS, 0L)
                     val windowSeenSet = prefs.getStringSet(LockscreenKanjiService.KEY_WINDOW_SEEN_KANJI, null)?.toMutableSet() ?: mutableSetOf()
 
-                    // Ensure any kanji seen today during this active cycle are included in windowSeenSet
-                    if (kanjiSet.isNotEmpty() && !windowSeenSet.containsAll(kanjiSet)) {
-                        windowSeenSet.addAll(kanjiSet)
+                    // Ensure any kanji seen today during this active cycle belonging to the active pool are included in windowSeenSet
+                    val validPoolIds = try {
+                        val poolStr = prefs.getString(LockscreenKanjiService.KEY_KANJI_JSON, "[]") ?: "[]"
+                        val poolArr = org.json.JSONArray(poolStr)
+                        (0 until poolArr.length()).map { poolArr.getJSONObject(it).optString("id", "") }.toSet()
+                    } catch (_: Exception) { emptySet() }
+
+                    val validKanjiToday = if (validPoolIds.isNotEmpty()) kanjiSet.filter { it in validPoolIds }.toSet() else kanjiSet
+                    if (validKanjiToday.isNotEmpty() && !windowSeenSet.containsAll(validKanjiToday)) {
+                        windowSeenSet.addAll(validKanjiToday)
                         prefs.edit().putStringSet(LockscreenKanjiService.KEY_WINDOW_SEEN_KANJI, HashSet(windowSeenSet)).apply()
                     }
 

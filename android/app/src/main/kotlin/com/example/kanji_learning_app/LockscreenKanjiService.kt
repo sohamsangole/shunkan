@@ -44,11 +44,17 @@ class LockscreenKanjiService : Service() {
 
     // Fix #6: guard so startForeground is only called once per service lifecycle
     private var foregroundStarted = false
+    private var hasShownNotification = false
+    private var lastScreenOffMs = 0L
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_SCREEN_OFF) {
-                showNextKanjiNotification(isInitial = false)
+                val now = System.currentTimeMillis()
+                if (now - lastScreenOffMs >= 2000L) {
+                    lastScreenOffMs = now
+                    showNextKanjiNotification(isInitial = false)
+                }
             }
         }
     }
@@ -57,6 +63,7 @@ class LockscreenKanjiService : Service() {
         super.onCreate()
         isRunning = true
         foregroundStarted = false
+        hasShownNotification = false
         createNotificationChannel()
         ensureForeground()
         registerScreenReceiver()
@@ -89,7 +96,9 @@ class LockscreenKanjiService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ensureForeground()
         val isRefresh = intent?.action == ACTION_REFRESH
-        showNextKanjiNotification(isInitial = !isRefresh)
+        if (!hasShownNotification || isRefresh) {
+            showNextKanjiNotification(isInitial = !isRefresh)
+        }
         return START_STICKY
     }
 
@@ -97,6 +106,17 @@ class LockscreenKanjiService : Service() {
         unregisterScreenReceiver()
         isRunning = false
         foregroundStarted = false
+        hasShownNotification = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+        try {
+            val manager = NotificationManagerCompat.from(this)
+            manager.cancel(NOTIFICATION_ID)
+        } catch (_: Exception) {}
         super.onDestroy()
     }
 
@@ -287,6 +307,7 @@ class LockscreenKanjiService : Service() {
                 val manager = NotificationManagerCompat.from(this)
                 try { manager.notify(NOTIFICATION_ID, notification) } catch (_: SecurityException) {}
             }
+            hasShownNotification = true
 
         } catch (_: Exception) {}
     }
@@ -348,8 +369,9 @@ class LockscreenKanjiService : Service() {
         } else ArrayDeque()
 
         if (deck.isEmpty() || isWindowExpired) {
+            val isNewWindow = isWindowExpired || windowStartMs == 0L
             deck.clear()
-            deck.addAll(buildWindowedDeck(prefs, array, poolSize))
+            deck.addAll(buildWindowedDeck(prefs, array, poolSize, isNewWindow))
         }
 
         val chosen = if (deck.isNotEmpty()) deck.removeFirst()
@@ -375,17 +397,25 @@ class LockscreenKanjiService : Service() {
     }
 
     /**
-     * Builds a catch-up shuffle deck based on exposure during the previous window:
-     * - Kanji missed during the previous window get 2 slots (catch-up priority).
-     * - Kanji seen during the previous window get 1 slot (spaced reinforcement).
+     * Builds a catch-up shuffle deck based on exposure:
+     * - If isNewWindow: Evaluates previous window's coverage, resets window start to midnight,
+     *   clears KEY_WINDOW_SEEN_KANJI for the new cycle, and increments cycle count.
+     * - If NOT isNewWindow (intra-window refill): Preserves KEY_WINDOW_START_MS and
+     *   KEY_WINDOW_SEEN_KANJI so coverage is NOT wiped if the deck empties before window expires.
+     * - Kanji missed get 2 slots (catch-up priority) if coverage was >30%.
      * - Shuffled randomly with Fisher-Yates algorithm.
      */
-    private fun buildWindowedDeck(prefs: android.content.SharedPreferences, array: JSONArray, poolSize: Int): List<String> {
+    private fun buildWindowedDeck(
+        prefs: android.content.SharedPreferences,
+        array: JSONArray,
+        poolSize: Int,
+        isNewWindow: Boolean
+    ): List<String> {
         val len = array.length()
         val deck = mutableListOf<String>()
 
         val seenInWindow = prefs.getStringSet(KEY_WINDOW_SEEN_KANJI, null) ?: emptySet()
-        val isFirstRun = seenInWindow.isEmpty()
+        val isFirstRun = prefs.getLong(KEY_WINDOW_START_MS, 0L) == 0L
         val coveragePercent = if (len > 0) (seenInWindow.size.toDouble() / len.toDouble()) * 100.0 else 0.0
 
         var missedCount = 0
@@ -400,7 +430,7 @@ class LockscreenKanjiService : Service() {
             val id   = item.optString("id", "").ifEmpty { item.optString("character", "$i") }
 
             if (shouldPrioritizeMissed && !seenInWindow.contains(id)) {
-                // Missed in previous window with active engagement (>30%): 2 slots (catch-up)
+                // Missed in previous/current window with active engagement (>30%): 2 slots (catch-up)
                 deck.add(id)
                 deck.add(id)
                 missedCount++
@@ -417,25 +447,31 @@ class LockscreenKanjiService : Service() {
             val tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp
         }
 
-        val cal = java.util.Calendar.getInstance()
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
-        cal.set(java.util.Calendar.MINUTE, 0)
-        cal.set(java.util.Calendar.SECOND, 0)
-        cal.set(java.util.Calendar.MILLISECOND, 0)
-        val startOfDayMs = cal.timeInMillis
-
         val editor = prefs.edit()
-            .putLong(KEY_WINDOW_START_MS, startOfDayMs)
-            .putStringSet(KEY_WINDOW_SEEN_KANJI, HashSet<String>())
+        if (isNewWindow) {
+            val cal = java.util.Calendar.getInstance()
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            val startOfDayMs = cal.timeInMillis
 
-        if (!isFirstRun) {
-            val prevCycles = prefs.getInt(KEY_CYCLES_COMPLETED, 0)
-            editor.putInt(KEY_CYCLES_COMPLETED, prevCycles + 1)
+            editor.putLong(KEY_WINDOW_START_MS, startOfDayMs)
+                .putStringSet(KEY_WINDOW_SEEN_KANJI, HashSet<String>())
+
+            if (!isFirstRun) {
+                val prevCycles = prefs.getInt(KEY_CYCLES_COMPLETED, 0)
+                editor.putInt(KEY_CYCLES_COMPLETED, prevCycles + 1)
+            }
         }
         editor.apply()
 
         val windowHours = getWindowDurationMs(poolSize) / (3600 * 1000L)
-        val mode = if (shouldPrioritizeMissed) "2x catch-up" else "flat 1x (coverage=${coveragePercent.toInt()}%)"
+        val mode = if (isNewWindow) {
+            if (shouldPrioritizeMissed) "new-window 2x catch-up" else "new-window flat 1x (coverage=${coveragePercent.toInt()}%)"
+        } else {
+            "intra-window refill (seen=${seenInWindow.size}/$len preserved)"
+        }
         android.util.Log.i(
             "LockscreenKanjiService",
             "Window deck built ($mode): ${deck.size} slots from $len kanji ($missedCount missed [2x], $seenCount 1x, window=${windowHours}h)"

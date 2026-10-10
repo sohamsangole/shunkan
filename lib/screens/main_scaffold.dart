@@ -18,6 +18,9 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  String? _lastNavigatedKanjiId;
+  DateTime? _lastNavigatedTime;
+  bool _isModalOpen = false;
 
   final List<Widget> _screens = const [
     HomeScreen(),
@@ -59,6 +62,18 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
   void _navigateToKanji(String kanjiId) {
     debugPrint('[MainScaffold] _navigateToKanji called with id: $kanjiId');
     if (!mounted) return;
+
+    // Guard against duplicate invocations within 1.5 seconds for the same kanji
+    final now = DateTime.now();
+    if (_lastNavigatedKanjiId == kanjiId &&
+        _lastNavigatedTime != null &&
+        now.difference(_lastNavigatedTime!) < const Duration(milliseconds: 1500)) {
+      debugPrint('[MainScaffold] Debouncing duplicate navigation for $kanjiId');
+      return;
+    }
+    _lastNavigatedKanjiId = kanjiId;
+    _lastNavigatedTime = now;
+
     final appState = context.read<AppState>();
     Kanji? target;
     try {
@@ -77,10 +92,18 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
         _currentIndex = 2; // Switch to Pool tab (now index 2)
       });
       // Show detail modal for this Kanji
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        if (_isModalOpen) {
+          // If modal is already open, pop it before showing the new one
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+        _isModalOpen = true;
+        try {
           debugPrint('[MainScaffold] Opening modal for ${target!.character}');
-          PoolScreen.showKanjiDetail(context, target);
+          await PoolScreen.showKanjiDetail(context, target!);
+        } finally {
+          _isModalOpen = false;
         }
       });
     }

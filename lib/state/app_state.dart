@@ -165,8 +165,11 @@ class AppState extends ChangeNotifier {
 
       if (_settings.onboardingCompleted && _settings.jlptLevel != null) {
         if (_settings.lockscreenRefreshEnabled) {
+          final isRunning = await LockscreenManager.isServiceRunning();
           await LockscreenManager.updatePool(currentEligiblePool);
-          await LockscreenManager.startService();
+          if (!isRunning) {
+            await LockscreenManager.startService();
+          }
         }
       }
       await refreshTelemetry();
@@ -276,6 +279,13 @@ class AppState extends ChangeNotifier {
   /// Trigger a test lock-screen notification right now
   Future<Kanji?> triggerTestNotification() async {
     if (_settings.jlptLevel == null) return null;
+    if (_settings.lockscreenRefreshEnabled) {
+      final isRunning = await LockscreenManager.isServiceRunning();
+      if (isRunning) {
+        await LockscreenManager.updatePool(currentEligiblePool, refreshImmediate: true);
+        return null;
+      }
+    }
     return await _notificationService
         .triggerImmediateKanjiNotification(_settings.jlptLevel!);
   }

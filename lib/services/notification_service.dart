@@ -40,7 +40,10 @@ class NotificationService {
       final initialized = await _notificationsPlugin.initialize(
         initSettings,
         onDidReceiveNotificationResponse: (details) {
-          // Handle tap on notification
+          final payload = details.payload;
+          if (payload != null && payload.isNotEmpty) {
+            LockscreenManager.handleNotificationOpen(payload);
+          }
         },
       );
       return initialized ?? false;

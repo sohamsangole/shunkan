@@ -138,8 +138,8 @@ class PoolScreen extends StatelessWidget {
   }
 
   /// Displays detail modal for a Kanji entry with full readings, examples, and copy button.
-  static void showKanjiDetail(BuildContext context, Kanji kanji) {
-    showModalBottomSheet(
+  static Future<void> showKanjiDetail(BuildContext context, Kanji kanji) {
+    return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: const Color(0xFF0A0A0A),

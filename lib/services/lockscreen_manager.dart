@@ -82,8 +82,11 @@ class LockscreenManager {
     return const TelemetryData();
   }
 
+  static Function(String kanjiId)? _currentHandler;
+
   /// Sets a listener for notification clicks that specify a Kanji to open.
   static void setKanjiOpenHandler(Function(String kanjiId) handler) {
+    _currentHandler = handler;
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'onOpenKanji') {
         final id = call.arguments as String?;
@@ -92,6 +95,13 @@ class LockscreenManager {
         }
       }
     });
+  }
+
+  /// Dispatches a notification open event directly (e.g. from local notifications plugin)
+  static void handleNotificationOpen(String kanjiId) {
+    if (kanjiId.isNotEmpty) {
+      _currentHandler?.call(kanjiId);
+    }
   }
 
   /// Checks if the app was launched by tapping a Kanji notification.
