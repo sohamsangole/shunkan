@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../models/jlpt_level.dart';
 import '../models/kanji.dart';
 import 'kanji_selector.dart';
+import 'lockscreen_manager.dart';
 
 /// Notification service managing lock-screen notifications for Kanji learning.
 class NotificationService {

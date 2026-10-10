@@ -88,6 +88,7 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
 
     debugPrint('[MainScaffold] Found target: ${target?.character}');
     if (target != null && mounted) {
+      final kanjiToOpen = target;
       setState(() {
         _currentIndex = 2; // Switch to Pool tab (now index 2)
       });
@@ -100,8 +101,8 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
         }
         _isModalOpen = true;
         try {
-          debugPrint('[MainScaffold] Opening modal for ${target!.character}');
-          await PoolScreen.showKanjiDetail(context, target!);
+          debugPrint('[MainScaffold] Opening modal for ${kanjiToOpen.character}');
+          await PoolScreen.showKanjiDetail(context, kanjiToOpen);
         } finally {
           _isModalOpen = false;
         }
