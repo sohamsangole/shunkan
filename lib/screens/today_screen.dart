@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/kanji.dart';
 import '../state/app_state.dart';
-import 'pool_screen.dart';
+import '../widgets/kanji_detail_sheet.dart';
 
 /// Screen displaying today's Kanji list in the Shunkan zen card layout.
 class TodayScreen extends StatefulWidget {
@@ -124,7 +124,7 @@ class _TodayScreenState extends State<TodayScreen> with WidgetsBindingObserver {
                               borderRadius: BorderRadius.circular(16),
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(16),
-                                onTap: () => PoolScreen.showKanjiDetail(context, kanji),
+                                onTap: () => KanjiDetailSheet.show(context, kanji),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 20.0,

@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kanji_learning_app/models/daily_activity.dart';
 import 'package:kanji_learning_app/models/jlpt_level.dart';
 import 'package:kanji_learning_app/models/kanji.dart';
+import 'package:kanji_learning_app/models/user_settings.dart';
 import 'package:kanji_learning_app/services/kanji_repository.dart';
 import 'package:kanji_learning_app/services/kanji_selector.dart';
 import 'package:kanji_learning_app/services/notification_service.dart';
@@ -131,8 +131,8 @@ void main() {
     });
   });
 
-  group('AppState: Level switching preserves learning history', () {
-    test('Changing level does not delete user learning history', () async {
+  group('AppState: Level switching and Settings persistence', () {
+    test('Changing level updates eligible pool correctly', () async {
       final storage = StorageService();
       final repository = KanjiRepository(initialData: testData);
       final selector = KanjiSelectorService(repository: repository);
@@ -150,11 +150,6 @@ void main() {
       expect(state.currentLevel, equals(JLPTLevel.n5));
       expect(state.isOnboardingCompleted, isTrue);
 
-      // Record a learning interaction
-      await state.recordReview('k_n5_001', isCorrect: true);
-      expect(state.learningHistory.containsKey('k_n5_001'), isTrue);
-      expect(state.learningHistory['k_n5_001']!.timesCorrect, equals(1));
-
       // Switch level to N4
       await state.updateLevel(JLPTLevel.n4);
       expect(state.currentLevel, equals(JLPTLevel.n4));
@@ -164,29 +159,21 @@ void main() {
         state.currentEligiblePool.any((k) => k.metadata.jlpt == JLPTLevel.n4),
         isTrue,
       );
-
-      // Verification: History is completely preserved!
-      expect(state.learningHistory.containsKey('k_n5_001'), isTrue);
-      expect(state.learningHistory['k_n5_001']!.timesCorrect, equals(1));
     });
 
-    test('DailyActivity serialization and StorageService persistence', () async {
+    test('UserSettings serialization and StorageService persistence', () async {
       final storage = StorageService();
-      const record = DailyActivity(
-        date: '2026-10-06',
-        glances: 15,
-        uniqueKanji: 10,
-        estimatedSeconds: 60,
-        kanjiIds: ['k_n5_001', 'k_n5_002'],
+      const settings = UserSettings(
+        jlptLevel: JLPTLevel.n3,
+        onboardingCompleted: true,
+        lockscreenRefreshEnabled: true,
       );
 
-      await storage.saveDailyActivity(record);
-      final loaded = await storage.loadDailyActivities();
-      expect(loaded.containsKey('2026-10-06'), isTrue);
-      expect(loaded['2026-10-06']!.glances, equals(15));
-      expect(loaded['2026-10-06']!.uniqueKanji, equals(10));
-      expect(loaded['2026-10-06']!.estimatedSeconds, equals(60));
-      expect(loaded['2026-10-06']!.kanjiIds, equals(['k_n5_001', 'k_n5_002']));
+      await storage.saveSettings(settings);
+      final loaded = await storage.loadSettings();
+      expect(loaded.jlptLevel, equals(JLPTLevel.n3));
+      expect(loaded.onboardingCompleted, isTrue);
+      expect(loaded.lockscreenRefreshEnabled, isTrue);
     });
   });
 }

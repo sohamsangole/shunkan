@@ -176,13 +176,6 @@ class LockscreenKanjiService : Service() {
             val onyomiDisplay  = item.optString("onyomiDisplay", "-")
             val kunyomiDisplay = item.optString("kunyomiDisplay", "-")
 
-            // Increment lockscreen glance count (drives tier classification on next deck rebuild)
-            try {
-                val glanceJson = JSONObject(prefs.getString(KEY_GLANCE_COUNTS, "{}") ?: "{}")
-                glanceJson.put(kanjiId, glanceJson.optInt(kanjiId, 0) + 1)
-                prefs.edit().putString(KEY_GLANCE_COUNTS, glanceJson.toString()).apply()
-            } catch (_: Exception) {}
-
             // Record passive telemetry — Fix #7: use kanjiId (not character) for uniqueness
             try {
                 val today     = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
@@ -484,6 +477,7 @@ class LockscreenKanjiService : Service() {
 
             editor.putLong(KEY_WINDOW_START_MS, startOfDayMs)
                 .putStringSet(KEY_WINDOW_SEEN_KANJI, HashSet<String>())
+                .remove(KEY_GLANCE_COUNTS)
 
             if (!isFirstRun) {
                 val prevCycles = prefs.getInt(KEY_CYCLES_COMPLETED, 0)

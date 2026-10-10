@@ -4,8 +4,8 @@ import '../models/kanji.dart';
 import '../services/lockscreen_manager.dart';
 import '../state/app_state.dart';
 import '../widgets/floating_glass_dock.dart';
+import '../widgets/kanji_detail_sheet.dart';
 import 'home_screen.dart';
-import 'pool_screen.dart';
 import 'settings_screen.dart';
 import 'today_screen.dart';
 
@@ -102,7 +102,7 @@ class _MainScaffoldState extends State<MainScaffold> with WidgetsBindingObserver
         _isModalOpen = true;
         try {
           debugPrint('[MainScaffold] Opening modal for ${kanjiToOpen.character}');
-          await PoolScreen.showKanjiDetail(context, kanjiToOpen);
+          await KanjiDetailSheet.show(context, kanjiToOpen);
         } finally {
           _isModalOpen = false;
         }
